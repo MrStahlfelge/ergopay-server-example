@@ -16,6 +16,8 @@ import java.util.Collections;
 
 @RestController
 public class ErgoPaySampleController {
+    public static final String NODE_MAINNET = "http://213.239.193.208:9053/";
+    public static final String NODE_TESTNET = "http://213.239.193.208:9052/";
 
     @GetMapping("/roundTrip/{address}")
     public ErgoPayResponse roundTrip(@PathVariable String address) {
@@ -67,6 +69,6 @@ public class ErgoPaySampleController {
     }
 
     private static String getDefaultNodeUrl(boolean mainNet) {
-        return mainNet ? "http://213.239.193.208:9053/" : "http://213.239.193.208:9052/";
+        return mainNet ? NODE_MAINNET : NODE_TESTNET;
     }
 }
