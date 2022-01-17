@@ -1,0 +1,30 @@
+plugins {
+	id 'org.springframework.boot' version '2.6.2'
+	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+	id 'java'
+}
+
+group = 'org.ergoplatform'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '11'
+
+repositories {
+	google()
+	mavenLocal()
+	mavenCentral()
+	maven { url 'https://jitpack.io' }
+	maven {
+		url = "https://oss.sonatype.org/content/repositories/snapshots/"
+	}
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.ergoplatform:ergo-appkit_2.11:develop-d0797336-SNAPSHOT'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+test {
+	useJUnitPlatform()
+}
