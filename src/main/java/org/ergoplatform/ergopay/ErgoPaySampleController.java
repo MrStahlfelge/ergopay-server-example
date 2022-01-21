@@ -9,6 +9,8 @@ import org.ergoplatform.appkit.UnsignedTransaction;
 import org.ergoplatform.appkit.impl.ErgoTreeContract;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Base64;
@@ -42,6 +44,11 @@ public class ErgoPaySampleController {
         }
 
         return response;
+    }
+
+    @PostMapping("/reply/")
+    public void postReply(@RequestBody ErgoPayReply reply) {
+        System.out.println(reply.txId);
     }
 
     private ReducedTransaction getReducedSendTx(boolean isMainNet, long amountToSend, Address sender, Address recipient) {
