@@ -156,6 +156,51 @@ public class ErgoPaySampleController {
         return response;
     }
 
+    @GetMapping("/burnToken/{address}")
+    public ErgoPayResponse burnToken(@PathVariable String address,
+                                     @RequestParam long num,
+                                     @RequestParam String tokenId) {
+
+        ErgoPayResponse response = new ErgoPayResponse();
+
+        try {
+            boolean isMainNet = isMainNetAddress(address);
+            long amountToSend = 1000L * 1000L;
+            Address sender = Address.create(address);
+            Address recipient = Address.create(address);
+
+            ErgoToken token = new ErgoToken(ErgoId.create(tokenId), num);
+
+            byte[] reduced = getReducedTx(isMainNet, amountToSend, Collections.singletonList(token), sender,
+                    unsignedTxBuilder -> {
+
+                        ErgoTreeContract contract = new ErgoTreeContract(recipient.getErgoAddress().script());
+
+                        OutBoxBuilder outBoxBuilder = unsignedTxBuilder.outBoxBuilder()
+                                .value(amountToSend)
+                                .contract(contract);
+
+                        OutBox newBox = outBoxBuilder.build();
+
+                        unsignedTxBuilder.outputs(newBox).tokensToBurn(token);
+
+                        return unsignedTxBuilder;
+                    }
+            ).toBytes();
+
+            response.reducedTx = Base64.getUrlEncoder().encodeToString(reduced);
+            response.address = address;
+            response.message = "Send this transaction to burn the selected tokens (see below).";
+            response.messageSeverity = ErgoPayResponse.Severity.INFORMATION;
+
+        } catch (Throwable t) {
+            response.messageSeverity = ErgoPayResponse.Severity.ERROR;
+            response.message = (t.getMessage());
+        }
+
+        return response;
+    }
+
     private ReducedTransaction getReducedSendTx(boolean isMainNet, long amountToSend, Address sender, Address recipient) {
         NetworkType networkType = isMainNet ? NetworkType.MAINNET : NetworkType.TESTNET;
         return RestApiErgoClient.create(
@@ -183,7 +228,8 @@ public class ErgoPaySampleController {
                 RestApiErgoClient.getDefaultExplorerUrl(networkType)
         ).execute(ctx -> {
 
-            List<InputBox> boxesToSpend = BoxOperations.loadTop(ctx, sender, amountToSpend + MinFee, tokensToSpend);
+            List<InputBox> boxesToSpend = BoxOperations.loadTop(ctx, Collections.singletonList(sender),
+                    amountToSpend + MinFee, tokensToSpend);
 
             P2PKAddress changeAddress = sender.asP2PK();
             UnsignedTransactionBuilder txB = ctx.newTxBuilder();
