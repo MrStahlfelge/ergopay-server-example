@@ -244,6 +244,54 @@ public class ErgoPaySampleController {
         });
     }
 
+    @GetMapping("/spendBox/{address}/{boxId}")
+    public ErgoPayResponse burnToken(@PathVariable String address, @PathVariable String boxId) {
+
+        ErgoPayResponse response = new ErgoPayResponse();
+
+        try {
+            boolean isMainNet = isMainNetAddress(address);
+            NetworkType networkType = isMainNet ? NetworkType.MAINNET : NetworkType.TESTNET;
+            Address recipient = Address.create(address);
+
+            byte[] reduced = RestApiErgoClient.create(
+                    getDefaultNodeUrl(isMainNet),
+                    networkType,
+                    "",
+                    RestApiErgoClient.getDefaultExplorerUrl(networkType)
+            ).execute(ctx -> {
+
+                InputBox inputBox = ctx.getBoxesById(boxId)[0];
+
+                UnsignedTransactionBuilder txB = ctx.newTxBuilder();
+
+                OutBox newBox = txB.outBoxBuilder()
+                        .value(inputBox.getValue() - MinFee)
+                        .tokens(inputBox.getTokens().toArray(new ErgoToken[0]))
+                        .contract(new ErgoTreeContract(recipient.getErgoAddress().script())).build();
+
+                UnsignedTransaction unsignedTransaction = txB.boxesToSpend(Collections.singletonList(inputBox))
+                        .fee(MinFee)
+                        .outputs(newBox)
+                        .sendChangeTo(recipient.asP2PK())
+                        .build();
+
+                return ctx.newProverBuilder().build().reduce(unsignedTransaction, 0);
+            }).toBytes();
+
+            response.reducedTx = Base64.getUrlEncoder().encodeToString(reduced);
+            response.address = address;
+            response.message = "Send this transaction to burn the selected tokens (see below).";
+            response.messageSeverity = ErgoPayResponse.Severity.INFORMATION;
+
+        } catch (Throwable t) {
+            response.messageSeverity = ErgoPayResponse.Severity.ERROR;
+            response.message = (t.getMessage());
+        }
+
+        return response;
+    }
+
     private static boolean isMainNetAddress(String address) {
         try {
             return Address.create(address).isMainnet();
