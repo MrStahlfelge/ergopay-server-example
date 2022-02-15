@@ -210,9 +210,9 @@ public class ErgoPaySampleController {
                 RestApiErgoClient.getDefaultExplorerUrl(networkType)
         ).execute(ctx -> {
             ErgoTreeContract contract = new ErgoTreeContract(recipient.getErgoAddress().script());
-            UnsignedTransaction unsignedTransaction = BoxOperations.putToContractTxUnsigned(ctx,
-                    Collections.singletonList(sender),
-                    contract, amountToSend, Collections.emptyList());
+            UnsignedTransaction unsignedTransaction = BoxOperations.createForSender(sender)
+                    .withAmountToSpend(amountToSend)
+                    .putToContractTxUnsigned(ctx, contract);
             return ctx.newProverBuilder().build().reduce(unsignedTransaction, 0);
         });
     }
@@ -228,8 +228,10 @@ public class ErgoPaySampleController {
                 RestApiErgoClient.getDefaultExplorerUrl(networkType)
         ).execute(ctx -> {
 
-            List<InputBox> boxesToSpend = BoxOperations.loadTop(ctx, Collections.singletonList(sender),
-                    amountToSpend + MinFee, tokensToSpend);
+            List<InputBox> boxesToSpend = BoxOperations.createForSender(sender)
+                    .withAmountToSpend(amountToSpend)
+                    .withTokensToSpend(tokensToSpend)
+                    .loadTop(ctx);
 
             P2PKAddress changeAddress = sender.asP2PK();
             UnsignedTransactionBuilder txB = ctx.newTxBuilder();

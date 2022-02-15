@@ -20,7 +20,7 @@ repositories {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.ergoplatform:ergo-appkit_2.11:4.0.6'
+	implementation 'org.ergoplatform:ergo-appkit_2.11:develop-71491aed-SNAPSHOT'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
