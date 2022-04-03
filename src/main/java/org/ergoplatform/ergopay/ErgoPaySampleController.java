@@ -5,6 +5,8 @@ import static org.ergoplatform.appkit.Parameters.MinFee;
 import org.ergoplatform.P2PKAddress;
 import org.ergoplatform.appkit.Address;
 import org.ergoplatform.appkit.BoxOperations;
+import org.ergoplatform.appkit.Eip4Token;
+import org.ergoplatform.appkit.ErgoContract;
 import org.ergoplatform.appkit.ErgoId;
 import org.ergoplatform.appkit.ErgoToken;
 import org.ergoplatform.appkit.InputBox;
@@ -15,7 +17,6 @@ import org.ergoplatform.appkit.ReducedTransaction;
 import org.ergoplatform.appkit.RestApiErgoClient;
 import org.ergoplatform.appkit.UnsignedTransaction;
 import org.ergoplatform.appkit.UnsignedTransactionBuilder;
-import org.ergoplatform.appkit.impl.ErgoTreeContract;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -94,6 +95,7 @@ public class ErgoPaySampleController {
         } catch (Throwable t) {
             response.messageSeverity = ErgoPayResponse.Severity.ERROR;
             response.message = (t.getMessage());
+            logger.error("Error round trip", t);
         }
 
         return response;
@@ -125,14 +127,15 @@ public class ErgoPaySampleController {
                     unsignedTxBuilder -> {
 
                         ErgoId firstInputBoxId = unsignedTxBuilder.getInputBoxes().get(0).getId();
-                        ErgoToken token = new ErgoToken(firstInputBoxId,
-                                new BigDecimal(num).movePointRight(dec).longValueExact());
+                        Eip4Token token = new Eip4Token(firstInputBoxId.toString(),
+                                new BigDecimal(num).movePointRight(dec).longValueExact(),
+                                name, "Minted with ErgoPay", dec);
 
-                        ErgoTreeContract contract = new ErgoTreeContract(recipient.getErgoAddress().script());
+                        ErgoContract contract = recipient.toErgoContract();
 
                         OutBoxBuilder outBoxBuilder = unsignedTxBuilder.outBoxBuilder()
                                 .value(amountToSend)
-                                .mintToken(token, name, "Minted with ErgoPay", dec)
+                                .mintToken(token)
                                 .contract(contract);
 
                         OutBox newBox = outBoxBuilder.build();
@@ -151,6 +154,7 @@ public class ErgoPaySampleController {
         } catch (Throwable t) {
             response.messageSeverity = ErgoPayResponse.Severity.ERROR;
             response.message = (t.getMessage());
+            logger.error("Error mint token", t);
         }
 
         return response;
@@ -174,7 +178,7 @@ public class ErgoPaySampleController {
             byte[] reduced = getReducedTx(isMainNet, amountToSend, Collections.singletonList(token), sender,
                     unsignedTxBuilder -> {
 
-                        ErgoTreeContract contract = new ErgoTreeContract(recipient.getErgoAddress().script());
+                        ErgoContract contract = recipient.toErgoContract();
 
                         OutBoxBuilder outBoxBuilder = unsignedTxBuilder.outBoxBuilder()
                                 .value(amountToSend)
@@ -196,6 +200,7 @@ public class ErgoPaySampleController {
         } catch (Throwable t) {
             response.messageSeverity = ErgoPayResponse.Severity.ERROR;
             response.message = (t.getMessage());
+            logger.error("Error burn token", t);
         }
 
         return response;
@@ -209,10 +214,10 @@ public class ErgoPaySampleController {
                 "",
                 RestApiErgoClient.getDefaultExplorerUrl(networkType)
         ).execute(ctx -> {
-            ErgoTreeContract contract = new ErgoTreeContract(recipient.getErgoAddress().script());
-            UnsignedTransaction unsignedTransaction = BoxOperations.createForSender(sender)
+            ErgoContract contract = recipient.toErgoContract();
+            UnsignedTransaction unsignedTransaction = BoxOperations.createForSender(sender, ctx)
                     .withAmountToSpend(amountToSend)
-                    .putToContractTxUnsigned(ctx, contract);
+                    .putToContractTxUnsigned(contract);
             return ctx.newProverBuilder().build().reduce(unsignedTransaction, 0);
         });
     }
@@ -228,10 +233,10 @@ public class ErgoPaySampleController {
                 RestApiErgoClient.getDefaultExplorerUrl(networkType)
         ).execute(ctx -> {
 
-            List<InputBox> boxesToSpend = BoxOperations.createForSender(sender)
+            List<InputBox> boxesToSpend = BoxOperations.createForSender(sender, ctx)
                     .withAmountToSpend(amountToSpend)
                     .withTokensToSpend(tokensToSpend)
-                    .loadTop(ctx);
+                    .loadTop();
 
             P2PKAddress changeAddress = sender.asP2PK();
             UnsignedTransactionBuilder txB = ctx.newTxBuilder();
@@ -270,7 +275,7 @@ public class ErgoPaySampleController {
                 OutBox newBox = txB.outBoxBuilder()
                         .value(inputBox.getValue() - MinFee)
                         .tokens(inputBox.getTokens().toArray(new ErgoToken[0]))
-                        .contract(new ErgoTreeContract(recipient.getErgoAddress().script())).build();
+                        .contract(recipient.toErgoContract()).build();
 
                 UnsignedTransaction unsignedTransaction = txB.boxesToSpend(Collections.singletonList(inputBox))
                         .fee(MinFee)
@@ -289,6 +294,7 @@ public class ErgoPaySampleController {
         } catch (Throwable t) {
             response.messageSeverity = ErgoPayResponse.Severity.ERROR;
             response.message = (t.getMessage());
+            logger.error("Error spend box", t);
         }
 
         return response;
