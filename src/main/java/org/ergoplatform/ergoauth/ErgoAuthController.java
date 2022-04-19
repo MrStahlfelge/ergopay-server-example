@@ -39,8 +39,9 @@ public class ErgoAuthController {
 
             ErgoAuthRequest request = new ErgoAuthRequest();
             request.messageSeverity = ErgoAuthRequest.Severity.INFORMATION;
-            request.userMessage = "Please sign the message with your address + " + address +
-                    " +  to authenticate to our dApp";
+            request.userMessage = "Please sign the message with your address\n" +
+                    address +
+                    "\nto authenticate to our dApp";
             request.sigmaBoolean = Base64.getEncoder().encodeToString(addressSigmaProp.toBytes());
             request.signingMessage = messageToSign;
 
