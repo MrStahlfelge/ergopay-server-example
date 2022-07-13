@@ -32,8 +32,7 @@ public class ErgoAuthController {
             // and we need a message to sign. This message should be unique for our dApp,
             // never occur twice and should not be predictable, so we use a timestring, a unique name
             // and a random component
-            String messageToSign = new SecureRandom().nextInt(500) + MESSAGE_CONSTANT + System.currentTimeMillis();
-
+            String messageToSign = "Authenticate to example dapp\u0000" + new SecureRandom().nextInt(500) + MESSAGE_CONSTANT + System.currentTimeMillis();
             // attention: in production, we must save the message we sent to the user in order to
             // validate the response. This is not done here as this example has no db attached
 
