@@ -22,6 +22,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springdoc:springdoc-openapi-ui:1.6.4'
 	implementation 'org.ergoplatform:ergo-appkit_2.11:4.0.10'
+	implementation 'com.github.MrStahlfelge:ergoplatform-jackson:4.0.8'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
