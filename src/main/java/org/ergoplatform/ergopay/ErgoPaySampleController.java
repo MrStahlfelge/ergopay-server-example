@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,6 +32,7 @@ import java.math.BigDecimal;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -87,17 +89,25 @@ public class ErgoPaySampleController {
     }
 
     @GetMapping("/roundTrip/{address}")
-    public ErgoPayResponse roundTrip(@PathVariable String address) {
-        return roundTrip(Collections.singletonList(address));
+    public ErgoPayResponse roundTrip(@PathVariable String address,
+                                     @RequestHeader Map<String, String> header) {
+        return roundTrip(Collections.singletonList(address), header);
     }
 
     @PostMapping("/roundTrip/" + ErgoPayConstants.URL_CONST_MULTIPLE_ADDRESSES)
-    public ErgoPayResponse roundTrip(@RequestBody List<String> addresses) {
+    public ErgoPayResponse roundTrip(@RequestBody List<String> addresses,
+                                     @RequestHeader Map<String, String> header) {
         // sends 1 ERG around to and from the address
 
         ErgoPayResponse response = new ErgoPayResponse();
 
         try {
+            boolean multipleAddressesSupported = ErgoPayConstants.HEADER_VALUE_SUPPORTED.equals(
+                    header.get(ErgoPayConstants.HEADER_KEY_MULTIPLE_ADDRESSES.toLowerCase()));
+
+            if (!multipleAddressesSupported && addresses.size() > 1)
+                throw new IllegalArgumentException("Wallet App does not support multiple addresses to be selected");
+
             boolean isMainNet = isMainNetAddress(addresses.get(0));
             long amountToSend = 1000L * 1000L * 1000L;
             List<Address> senders = addresses.stream().map(Address::create).collect(Collectors.toList());
