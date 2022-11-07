@@ -32,6 +32,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 @CrossOrigin
@@ -50,9 +51,16 @@ public class ErgoPaySampleController {
 
     @GetMapping("/setAddress/{sessionId}/{address}")
     public ErgoPayResponse setAddress(@PathVariable String sessionId, @PathVariable String address) {
+        return setAddress(sessionId, Collections.singletonList(address));
+    }
+
+    @PostMapping("/setAddress/{sessionId}/" + ErgoPayConstants.URL_CONST_MULTIPLE_ADDRESSES)
+    public ErgoPayResponse setAddress(@PathVariable String sessionId, @RequestBody List<String> addresses) {
         UserData userData = sessionService.getUserData(sessionId);
 
-        logger.info("Received address " + address + " for session " + sessionId);
+        logger.info("Received addresses " + addresses.toString() + " for session " + sessionId);
+        // we simply discard this here
+        String address = addresses.get(0);
 
         ErgoPayResponse response = new ErgoPayResponse();
 
@@ -61,7 +69,6 @@ public class ErgoPaySampleController {
             boolean isMainNet = isMainNetAddress(address);
 
             response.address = address;
-            userData.p2pkAddress = address;
             response.message = "Connected to your address " + address + ".\n\nYou can now continue using the dApp.";
             response.messageSeverity = ErgoPayResponse.Severity.INFORMATION;
 
@@ -73,22 +80,36 @@ public class ErgoPaySampleController {
         return response;
     }
 
+    @PostMapping("/setAddress/{sessionId}/" + ErgoPayConstants.URL_CONST_MULTIPLE_ADDRESSES_CHECK)
+    public Object checkSetAddressMultiple(@PathVariable String sessionId) {
+        // we support multiple addresses for this endpoint, so we return just 200
+        return null;
+    }
+
     @GetMapping("/roundTrip/{address}")
     public ErgoPayResponse roundTrip(@PathVariable String address) {
+        return roundTrip(Collections.singletonList(address));
+    }
+
+    @PostMapping("/roundTrip/" + ErgoPayConstants.URL_CONST_MULTIPLE_ADDRESSES)
+    public ErgoPayResponse roundTrip(@RequestBody List<String> addresses) {
         // sends 1 ERG around to and from the address
 
         ErgoPayResponse response = new ErgoPayResponse();
 
         try {
-            boolean isMainNet = isMainNetAddress(address);
+            boolean isMainNet = isMainNetAddress(addresses.get(0));
             long amountToSend = 1000L * 1000L * 1000L;
-            Address sender = Address.create(address);
-            Address recipient = Address.create(address);
+            List<Address> senders = addresses.stream().map(Address::create).collect(Collectors.toList());
+            Address recipient = Address.create(addresses.get(0));
 
-            byte[] reduced = getReducedSendTx(isMainNet, amountToSend, sender, recipient).toBytes();
+            byte[] reduced = getReducedSendTx(isMainNet, amountToSend, senders, recipient).toBytes();
 
             response.reducedTx = Base64.getUrlEncoder().encodeToString(reduced);
-            response.address = address;
+            if (addresses.size() == 1)
+                response.address = addresses.get(0);
+            else
+                response.addresses = addresses;
             response.message = "Here is your 1 ERG round trip.";
             response.messageSeverity = ErgoPayResponse.Severity.INFORMATION;
 
@@ -99,6 +120,12 @@ public class ErgoPaySampleController {
         }
 
         return response;
+    }
+
+    @PostMapping("/roundTrip/" + ErgoPayConstants.URL_CONST_MULTIPLE_ADDRESSES_CHECK)
+    public Object checkRoundTripMultiple() {
+        // we support multiple addresses for this endpoint, so we return just 200
+        return null;
     }
 
     @PostMapping("/reply/{sessionId}")
@@ -206,7 +233,7 @@ public class ErgoPaySampleController {
         return response;
     }
 
-    private ReducedTransaction getReducedSendTx(boolean isMainNet, long amountToSend, Address sender, Address recipient) {
+    private ReducedTransaction getReducedSendTx(boolean isMainNet, long amountToSend, List<Address> senders, Address recipient) {
         NetworkType networkType = isMainNet ? NetworkType.MAINNET : NetworkType.TESTNET;
         return RestApiErgoClient.create(
                 getDefaultNodeUrl(isMainNet),
@@ -215,7 +242,7 @@ public class ErgoPaySampleController {
                 RestApiErgoClient.getDefaultExplorerUrl(networkType)
         ).execute(ctx -> {
             ErgoContract contract = recipient.toErgoContract();
-            UnsignedTransaction unsignedTransaction = BoxOperations.createForSender(sender, ctx)
+            UnsignedTransaction unsignedTransaction = BoxOperations.createForSenders(senders, ctx)
                     .withAmountToSpend(amountToSend)
                     .putToContractTxUnsigned(contract);
             return ctx.newProverBuilder().build().reduce(unsignedTransaction, 0);
